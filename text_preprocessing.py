@@ -5,9 +5,11 @@
 
 import pandas as pd
 import seaborn as sns
+import numpy as np
 import matplotlib.pyplot as plt
 import string, re
 from nltk.corpus import stopwords
+from sklearn.preprocessing import StandardScaler
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 #######################
@@ -47,7 +49,7 @@ def modality_preprocessed_dataset():
     df = pd.read_csv('dataset/train.tsv', sep = '\t')
 
     # Remove features useless for modality
-    df = df.drop(['n_insert', 'n_delete', 'n_substitute', 'n_shift', 'bleu', 'chrf', 'ter', 'aligned_edit', 'mt_text'], axis = 1)
+    df = df.drop(['item_id', 'subject_id', 'n_insert', 'n_delete', 'n_substitute', 'n_shift', 'bleu', 'chrf', 'ter', 'aligned_edit', 'mt_text'], axis = 1)
 
     # mt_df = df[df['modality'] != 'ht']
 
@@ -59,11 +61,22 @@ def modality_preprocessed_dataset():
     # Transform TFIDF sparse matrix into pandas
     df_2 = pd.DataFrame(text.toarray(), columns = vec.get_feature_names_out())
 
-    # Remove weird numerical that is still in the data
+    # Removing unnecessary features after vectorization
+    df = df.drop(['src_text', 'tgt_text'], axis = 1)
     df_2 = df_2.drop("17", axis = 1)
+
+    # Changing features into floats 
+    for column in df.columns:
+        if column != 'modality':
+            df[column] = [float(i) for i in df[column]]
+
+    # Scaling features
+    scaler = StandardScaler()
+    scaling_features = [i for i in df.columns if i != "modality"]
+    df[scaling_features] = scaler.fit_transform(df[scaling_features])
     
-    # Combine into one dataframe
-    return df.join(df_2)
+    # Return combined dataframe
+    return df.join(df_2) 
 
 ################
 # Main Function
