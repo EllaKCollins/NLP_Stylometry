@@ -1,4 +1,6 @@
 
+# Data preprocessing for the modeling scripts
+
 ##########
 # Imports
 ##########
@@ -79,7 +81,7 @@ def modality_preprocessed_dataset():
     df[scaling_features] = scaler.fit_transform(df[scaling_features])
     
     # Return combined dataframe
-    return df.join(df_2), df
+    return df.join(df_2), df, df_2
 
 def subject_preprocessed_dataset():
 
@@ -114,7 +116,7 @@ def subject_preprocessed_dataset():
     df[scaling_features] = scaler.fit_transform(df[scaling_features])
     
     # Return combined dataframe
-    return df.join(df_2), df
+    return df.join(df_2), df, df_2
 
 def test_modality_preprocessed_dataset():
 
@@ -149,7 +151,7 @@ def test_modality_preprocessed_dataset():
     df[scaling_features] = scaler.fit_transform(df[scaling_features])
     
     # Return combined dataframe
-    return df.join(df_2), df
+    return df.join(df_2), df, df_2
 
 ################
 # Main Function

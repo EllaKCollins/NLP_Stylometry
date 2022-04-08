@@ -1,11 +1,13 @@
 
+# Feature analysis for subject_id
+
 ##########
 # Imports
 ##########
 
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split, cross_val_score, cross_val_predict
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report 
 from sklearn.feature_selection import f_classif, chi2
@@ -15,8 +17,8 @@ from text_preprocessing import modality_preprocessed_dataset, subject_preprocess
 # Load Dataset
 ###############
 
-mdf, _ = modality_preprocessed_dataset()
-sdf_t, sdf = subject_preprocessed_dataset()
+mdf, _, _ = modality_preprocessed_dataset()
+sdf_t, sdf, sdf_2 = subject_preprocessed_dataset()
 
 # Creating binary and sans-ht modality lists
 mdf['modality_2'] = ["pe" if i != "ht" else "ht" for i in mdf['modality']]
@@ -51,50 +53,81 @@ print(x)
 # Without words
 X = sdf.drop('subject_id', axis = 1)
 y = sdf['subject_id']
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3)
 
-log_reg = LogisticRegression()
-scores = cross_val_score(log_reg, X, y, cv = 5)
+log_reg = LogisticRegression(max_iter = 200)
+pred = cross_val_predict(log_reg, X, y, cv = 5)
 
 print("==================")
 print("Without words")
-print(f"Cross-validation accuracy: {np.mean(scores):.4f}")
+print(classification_report(y, pred))
+
+# Only words
+X = sdf_2
+y = sdf['subject_id']
+
+log_reg = LogisticRegression(max_iter = 200)
+pred = cross_val_predict(log_reg, X, y, cv = 5)
+
+print("==================")
+print("Only words")
+print(classification_report(y, pred))
 
 # With words
 X = sdf_t.drop('subject_id', axis = 1)
 y = sdf_t['subject_id']
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3)
 
-log_reg = LogisticRegression()
-scores = cross_val_score(log_reg, X, y, cv = 5)
+log_reg = LogisticRegression(max_iter = 200)
+pred = cross_val_predict(log_reg, X, y, cv = 5)
 
 print("==================")
-print("With words")
-print(f"Cross-validation accuracy: {np.mean(scores):.4f}")
+print("With Words")
+print(classification_report(y, pred))
 
 # Removed non-significant features
 X = sdf_t[sig_feats]
 y = sdf_t['subject_id']
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3)
 
-log_reg = LogisticRegression()
-scores = cross_val_score(log_reg, X, y, cv = 5)
+log_reg = LogisticRegression(max_iter = 200)
+pred = cross_val_predict(log_reg, X, y, cv = 5)
 
 print("==================")
-print("Without non-significant features")
-print(f"Cross-validation accuracy: {np.mean(scores):.4f}")
+print("Only significant features")
+print(classification_report(y, pred))
 
-# Removed non-significant features
+# Only non-significant features
 X = sdf_t[non_sig_feats]
 y = sdf_t['subject_id']
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3)
 
-log_reg = LogisticRegression()
-scores = cross_val_score(log_reg, X, y, cv = 5)
+log_reg = LogisticRegression(max_iter = 200)
+pred = cross_val_predict(log_reg, X, y, cv = 5)
 
 print("==================")
-print("Only non-significant features")
-print(f"Cross-validation accuracy: {np.mean(scores):.4f}")
+print("Non-significant features")
+print(classification_report(y, pred))
+
+# Removed k_nav and num_annotations
+spec_feats = ['k_nav', 'num_annotations']
+X = sdf_t[spec_feats]
+y = sdf_t['subject_id']
+
+log_reg = LogisticRegression(max_iter = 200)
+pred = cross_val_predict(log_reg, X, y, cv = 5)
+
+print("==================")
+print("Only k_nav and num_annotations")
+print(classification_report(y, pred))
+
+#for feat in sig_feats:
+#    X = sdf_t.drop(['subject_id', feat], axis = 1)
+#    y = sdf_t['subject_id']
+#
+#    log_reg = LogisticRegression(max_iter = 200)
+#    scores = cross_val_score(log_reg, X, y, cv = 5)
+#
+#    print("==================")
+#    print(f"Without {feat}")
+#    print(f"Cross-validation accuracy: {np.mean(scores):.4f}")
+
 
 ###########################
 # Use informative features
