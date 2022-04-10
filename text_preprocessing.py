@@ -87,6 +87,7 @@ def subject_preprocessed_dataset():
 
     # Grab dataframe
     df = pd.read_csv('dataset/train.tsv', sep = '\t')
+    modality = df['modality']
 
     # Remove features useless for modality
     df = df.drop(['item_id', 'modality', 'n_insert', 'n_delete', 'n_substitute', 'n_shift', 'bleu', 'chrf', 'ter', 'aligned_edit', 'mt_text'], axis = 1)
@@ -114,6 +115,7 @@ def subject_preprocessed_dataset():
     scaler = StandardScaler()
     scaling_features = [i for i in df.columns if i != "subject_id"]
     df[scaling_features] = scaler.fit_transform(df[scaling_features])
+    df['modality'] = modality
     
     # Return combined dataframe
     return df.join(df_2), df, df_2
