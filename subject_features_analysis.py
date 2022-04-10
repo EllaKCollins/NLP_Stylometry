@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split, cross_val_score, cross_val
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report 
 from sklearn.feature_selection import f_classif, chi2
-from text_preprocessing import modality_preprocessed_dataset, subject_preprocessed_dataset
+from text_preprocessing import modality_preprocessed_dataset, subject_preprocessed_dataset, test_subject_preprocessed_dataset
 import warnings
 import sys
 warnings.filterwarnings('ignore')
@@ -21,15 +21,21 @@ warnings.filterwarnings('ignore')
 ###############
 
 sdf_t, sdf, sdf_2 = subject_preprocessed_dataset()
+tsdf_t, tsdf, tsdf_2 = test_subject_preprocessed_dataset()
 
 # POS preprocessing
 ex = pd.read_csv('ex.csv')
+test_ex = pd.read_csv('test_ex.csv')
 pesdf = sdf_t.drop(ex['index'])
 pesdf = pesdf[pesdf['modality'] != 'ht'].reset_index().drop(columns = ['index'])
+test_pesdf = tsdf_t.drop(test_ex['index'])
+test_pesdf = test_pesdf[test_pesdf['modality'] != 'ht'].reset_index().drop(columns = ['index'])
 
 # POS error counts dataframe
 sdf_e = pd.read_csv('pos_df.csv').drop(columns = ['subject_id', 'modality', 'Unnamed: 0', 'item_id'])
+tsdf_e = pd.read_csv('test_pos_df.csv').drop(columns = ['subject_id', 'modality', 'Unnamed: 0', 'item_id'])
 pesdfe = pesdf.join(sdf_e)
+test_pesdfe = test_pesdf.join(tsdf_e)
 
 ####################
 # ANOVA with F-Test
@@ -110,6 +116,18 @@ pred = cross_val_predict(log_reg, X, y, cv = 5)
 print("==================")
 print("Only significant features")
 print(classification_report(y, pred))
+
+# Predict test data using only significant model
+log_reg = LogisticRegression(max_iter = 200)
+log_reg.fit(X, y)
+
+test_X = test_pesdfe[sig_feats]
+test_y = test_pesdfe['subject_id']
+pred = log_reg.predict(test_X)
+
+print("==================")
+print("Test score using significant model")
+print(classification_report(test_y, pred))
 
 ## Only non-significant features
 #X = sdf_t[non_sig_feats]
