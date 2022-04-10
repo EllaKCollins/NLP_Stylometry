@@ -12,24 +12,37 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report 
 from sklearn.feature_selection import f_classif, chi2
 from text_preprocessing import modality_preprocessed_dataset, subject_preprocessed_dataset
+import warnings
+import sys
+warnings.filterwarnings('ignore')
 
 ###############
 # Load Dataset
 ###############
 
 mdf_t, mdf, mdf_2 = modality_preprocessed_dataset()
+mdf_e = pd.read_csv('pos_df.csv').drop(columns = ['subject_id', 'modality', 'Unnamed: 0', 'item_id'])
 
-# Creating binary and sans-ht modality lists
+# Binary modalities
 mdf['modality_2'] = ["pe" if i != "ht" else "ht" for i in mdf['modality']]
 mdf_t['modality_2'] = ["pe" if i != "ht" else "ht" for i in mdf['modality']]
 mdf_2['modality_2'] = ["pe" if i != "ht" else "ht" for i in mdf['modality']]
-pe_mdf = mdf[mdf['modality_2'] != 'ht']
+
+# PE-only modalities and POS Errors
+ex = pd.read_csv('ex.csv')
+pe_mdf = mdf.drop(ex['index'])
+pe_mdf = pe_mdf[pe_mdf['modality_2'] != 'ht'].reset_index().drop(columns = ['index'])
+pe_mdf_2 = mdf_2.drop(ex['index'])
+pe_mdf_2 = pe_mdf_2[pe_mdf_2['modality_2'] != 'ht'].reset_index().drop(columns = ['index'])
+pe_mdf_t = mdf_t.drop(ex['index'])
+pe_mdf_t = pe_mdf_t[pe_mdf_t['modality_2'] != 'ht'].reset_index().drop(columns = ['index'])
+pe_mdf_e = pe_mdf_t.join(mdf_e)
 
 ####################
 # ANOVA with F-Test
 ####################
 
-# Text classification
+# All modalities
 X = mdf_t.drop(['modality', 'modality_2'], axis = 1)
 y = mdf_t['modality']
 
@@ -42,16 +55,58 @@ x["p_value"] = p
 x = x.sort_values(by = ["f_value"], ascending = False)
 j = x[x["p_value"] > 0.05]
 x = x[x["p_value"] < 0.05]
-sig_feats = x["names"]
+multi_sig_feats = x["names"]
 non_sig_feats = j["names"]
 
+print("==================")
+print("All modalities ANOVA; behavioral and TF-IDF features")
+print(x)
+
+# Binary modalities
+X = mdf_t.drop(['modality', 'modality_2'], axis = 1)
+y = mdf_t['modality_2']
+
+f, p, = f_classif(X, y)
+
+x = pd.DataFrame()
+x["names"] = X.columns
+x["f_value"] = f
+x["p_value"] = p
+x = x.sort_values(by = ["f_value"], ascending = False)
+j = x[x["p_value"] > 0.05]
+x = x[x["p_value"] < 0.05]
+bin_sig_feats = x["names"]
+non_sig_feats = j["names"]
+
+print("==================")
+print("Binary modalities ANOVA; behavioral and TF-IDF features")
+print(x)
+
+# PE Modalities
+X = pe_mdf_e.drop(['modality', 'modality_2'], axis = 1)
+y = pe_mdf_e['modality']
+
+f, p, = f_classif(X, y)
+
+x = pd.DataFrame()
+x["names"] = X.columns
+x["f_value"] = f
+x["p_value"] = p
+x = x.sort_values(by = ["f_value"], ascending = False)
+j = x[x["p_value"] > 0.05]
+x = x[x["p_value"] < 0.05]
+pe_sig_feats = x["names"]
+non_sig_feats = j["names"]
+
+print("==================")
+print("PE modalities ANOVA; Behavioral, TF-IDF, and POS Error features")
 print(x)
 
 ######################
 # Logistic Regression
 ######################
 
-# 3 mod Without words
+# All modalities, only behavioral
 X = mdf.drop(['modality', 'modality_2'], axis = 1)
 y = mdf['modality']
 
@@ -59,10 +114,10 @@ log_reg = LogisticRegression(max_iter = 200)
 pred = cross_val_predict(log_reg, X, y, cv = 5)
 
 print("==================")
-print("All 3 modalities without words")
+print("All modalities, only behavioral")
 print(classification_report(y, pred))
 
-# 3 mod only words
+# All modalities, only TF-IDF
 X = mdf_2.drop('modality_2', axis = 1)
 y = mdf['modality']
 
@@ -70,10 +125,10 @@ log_reg = LogisticRegression(max_iter = 200)
 pred = cross_val_predict(log_reg, X, y, cv = 5)
 
 print("==================")
-print("All 3 modalities only words")
+print("All modalities, only TF-IDF")
 print(classification_report(y, pred))
 
-# 3 mod with words
+# All modalities, behavioral and TF-IDF
 X = mdf_t.drop(['modality', 'modality_2'], axis = 1)
 y = mdf_t['modality']
 
@@ -81,21 +136,23 @@ log_reg = LogisticRegression(max_iter = 200)
 pred = cross_val_predict(log_reg, X, y, cv = 5)
 
 print("==================")
-print("All 3 modalities with words")
+print("All modalities, behavioral and TF-IDF")
 print(classification_report(y, pred))
 
-# Removed non-significant features, 3 mods
-X = mdf_t[sig_feats]
+# All modalities, only significant
+X = mdf_t[multi_sig_feats]
 y = mdf_t['modality']
 
 log_reg = LogisticRegression(max_iter = 200)
 pred = cross_val_predict(log_reg, X, y, cv = 5)
 
 print("==================")
-print("3 modalities, significant features")
+print("All modalities, only significant features")
 print(classification_report(y, pred))
 
-# Binary modality without words
+print("==================")
+
+# Binary modality, only behavioral 
 X = mdf.drop(['modality', 'modality_2'], axis = 1)
 y = mdf['modality_2']
 
@@ -103,10 +160,10 @@ log_reg = LogisticRegression(max_iter = 200)
 pred = cross_val_predict(log_reg, X, y, cv = 5)
 
 print("==================")
-print("Binary modalities without words")
+print("Binary modalities, only behavioral")
 print(classification_report(y, pred))
 
-# Binary modality only words
+# Binary modality, only words
 X = mdf_2.drop('modality_2', axis = 1)
 y = mdf_2['modality_2']
 
@@ -114,10 +171,10 @@ log_reg = LogisticRegression(max_iter = 200)
 pred = cross_val_predict(log_reg, X, y, cv = 5)
 
 print("==================")
-print("Binary modality only words")
+print("Binary modality, only words")
 print(classification_report(y, pred))
 
-# Binary modality with words
+# Binary modality, behavioral and TF-IDF
 X = mdf_t.drop(['modality', 'modality_2'], axis = 1)
 y = mdf_t['modality_2']
 
@@ -125,10 +182,78 @@ log_reg = LogisticRegression(max_iter = 200)
 pred = cross_val_predict(log_reg, X, y, cv = 5)
 
 print("==================")
-print("Binary modalities with words")
+print("Binary modalities, behavioral and TF-IDF")
 print(classification_report(y, pred))
 
-## With words
+# Binary modality, behavioral and TF-IDF
+X = mdf_t[bin_sig_feats]
+y = mdf_t['modality_2']
+
+log_reg = LogisticRegression(max_iter = 200)
+pred = cross_val_predict(log_reg, X, y, cv = 5)
+
+print("==================")
+print("Binary modalities, only significant features")
+print(classification_report(y, pred))
+
+print("==================")
+
+# PE-only; Only behaviour
+X = pe_mdf.drop(['modality', 'modality_2'], axis = 1)
+y = pe_mdf['modality']
+
+log_reg = LogisticRegression(max_iter = 200)
+pred = cross_val_predict(log_reg, X, y, cv = 5)
+
+print("==================")
+print("PE-only; only behavioral")
+print(classification_report(y, pred))
+
+# PE-only; Only TF-IDF
+X = pe_mdf_2.drop(['modality_2'], axis = 1)
+y = pe_mdf['modality']
+
+log_reg = LogisticRegression(max_iter = 200)
+pred = cross_val_predict(log_reg, X, y, cv = 5)
+
+print("==================")
+print("PE-only; only TF-IDF")
+print(classification_report(y, pred))
+
+# PE-only; Only POS
+X = mdf_e
+y = pe_mdf['modality']
+
+log_reg = LogisticRegression(max_iter = 200)
+pred = cross_val_predict(log_reg, X, y, cv = 5)
+
+print("==================")
+print("PE-only; only POS")
+print(classification_report(y, pred))
+
+# PE-only; behavioral, TF-IDF, and POS Error counts
+X = pe_mdf_e.drop(['modality', 'modality_2'], axis = 1)
+y = pe_mdf_e['modality']
+
+log_reg = LogisticRegression(max_iter = 200)
+pred = cross_val_predict(log_reg, X, y, cv = 5)
+
+print("==================")
+print("PE-only; behavioral, TF-IDF, and POS Error counts")
+print(classification_report(y, pred))
+
+# PE-only; Only significant
+X = pe_mdf_e[pe_sig_feats]
+y = pe_mdf_e['modality']
+
+log_reg = LogisticRegression(max_iter = 200)
+pred = cross_val_predict(log_reg, X, y, cv = 5)
+
+print("==================")
+print("PE-only; Only significant features")
+print(classification_report(y, pred))
+
+# With words
 #X = mdf_t.drop('modality', axis = 1)
 #y = mdf_t['modality']
 #
@@ -138,7 +263,6 @@ print(classification_report(y, pred))
 #print("==================")
 #print("With words")
 #print(f"Cross-validation accuracy: {np.mean(scores):.4f}")
-#
 
 ## Only non-significant features
 #X = mdf_t[non_sig_feats]
