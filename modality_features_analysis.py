@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split, cross_val_score, cross_val
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report 
 from sklearn.feature_selection import f_classif, chi2
-from text_preprocessing import modality_preprocessed_dataset, subject_preprocessed_dataset
+from text_preprocessing import modality_preprocessed_dataset, subject_preprocessed_dataset, test_modality_preprocessed_dataset
 import warnings
 import sys
 warnings.filterwarnings('ignore')
@@ -21,12 +21,15 @@ warnings.filterwarnings('ignore')
 ###############
 
 mdf_t, mdf, mdf_2 = modality_preprocessed_dataset()
+tmdf_t, tmdf, tmdf_2 = test_modality_preprocessed_dataset()
 mdf_e = pd.read_csv('pos_df.csv').drop(columns = ['subject_id', 'modality', 'Unnamed: 0', 'item_id'])
+tmdf_e = pd.read_csv('test_pos_df.csv').drop(columns = ['subject_id', 'modality', 'Unnamed: 0', 'item_id'])
 
 # Binary modalities
 mdf['modality_2'] = ["pe" if i != "ht" else "ht" for i in mdf['modality']]
 mdf_t['modality_2'] = ["pe" if i != "ht" else "ht" for i in mdf['modality']]
 mdf_2['modality_2'] = ["pe" if i != "ht" else "ht" for i in mdf['modality']]
+tmdf_t['modality_2'] = ["pe" if i != "ht" else "ht" for i in tmdf['modality']]
 
 # PE-only modalities and POS Errors
 ex = pd.read_csv('ex.csv')
@@ -37,6 +40,10 @@ pe_mdf_2 = pe_mdf_2[pe_mdf_2['modality_2'] != 'ht'].reset_index().drop(columns =
 pe_mdf_t = mdf_t.drop(ex['index'])
 pe_mdf_t = pe_mdf_t[pe_mdf_t['modality_2'] != 'ht'].reset_index().drop(columns = ['index'])
 pe_mdf_e = pe_mdf_t.join(mdf_e)
+test_ex = pd.read_csv('test_ex.csv')
+test_pe_mdf_t = tmdf_t.drop(test_ex['index'])
+test_pe_mdf_t = test_pe_mdf_t[test_pe_mdf_t['modality_2'] != 'ht'].reset_index().drop(columns = ['index'])
+test_pe_mdf_e = test_pe_mdf_t.join(tmdf_e)
 
 ####################
 # ANOVA with F-Test
@@ -150,6 +157,18 @@ print("==================")
 print("All modalities, only significant features")
 print(classification_report(y, pred))
 
+# Predict test data, all modalities with significant model
+log_reg = LogisticRegression(max_iter = 200)
+log_reg.fit(X, y)
+
+test_X = tmdf_t[multi_sig_feats]
+test_y = tmdf_t['modality']
+pred = log_reg.predict(test_X)
+
+print("==================")
+print("Test score: all modalities, significant model")
+print(classification_report(test_y, pred))
+
 print("==================")
 
 # Binary modality, only behavioral 
@@ -185,7 +204,7 @@ print("==================")
 print("Binary modalities, behavioral and TF-IDF")
 print(classification_report(y, pred))
 
-# Binary modality, behavioral and TF-IDF
+# Binary modality, only significant
 X = mdf_t[bin_sig_feats]
 y = mdf_t['modality_2']
 
@@ -195,6 +214,18 @@ pred = cross_val_predict(log_reg, X, y, cv = 5)
 print("==================")
 print("Binary modalities, only significant features")
 print(classification_report(y, pred))
+
+# Predict test data, binary modality with significant model
+log_reg = LogisticRegression(max_iter = 200)
+log_reg.fit(X, y)
+
+test_X = tmdf_t[bin_sig_feats]
+test_y = tmdf_t['modality_2']
+pred = log_reg.predict(test_X)
+
+print("==================")
+print("Test score: binary modalities, significant model")
+print(classification_report(test_y, pred))
 
 print("==================")
 
@@ -252,6 +283,20 @@ pred = cross_val_predict(log_reg, X, y, cv = 5)
 print("==================")
 print("PE-only; Only significant features")
 print(classification_report(y, pred))
+
+# Predict test data, PE-only modality with significant model
+log_reg = LogisticRegression(max_iter = 200)
+log_reg.fit(X, y)
+
+test_X = test_pe_mdf_e[pe_sig_feats]
+test_y = test_pe_mdf_e['modality']
+pred = log_reg.predict(test_X)
+
+print("==================")
+print("Test score: PE-only modalities, significant model")
+print(classification_report(test_y, pred))
+
+# Predict test data using only significant model
 
 # With words
 #X = mdf_t.drop('modality', axis = 1)
